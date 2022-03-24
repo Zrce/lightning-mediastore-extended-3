@@ -39,54 +39,68 @@ const Media = (props) => {
   useEffect(() => [props.invoice, props.fileDownloadUrl])
 
   const generateInvoiceAndCheck = async (source, price) => {
-    const data = await (await fetch(`/generate-invoice/${source}/${price}`)).json()
-    console.log(data)
-
+    let webln;
     try {
-      const webln = await requestProvider();
-      const payResponse = await webln.sendPayment(data.paymentRequest);
-      console.log(payResponse)
+      webln = await requestProvider();
+    } catch (err) {
+      console.log(err.message)
     }
-    catch(err) {
-      // Tell the user what went wrong
-      alert(err.message);
-    }
+    
+    const data = await (await fetch(`/generate-invoice/${source}/${price}`)).json()
 
-    // const updateMedia = mediaList.map((m) => {
-    //   if (m.source === source) {
-    //     const updatedMedia = {
-    //       ...m,
-    //       invoice: data.paymentRequest,
-    //       buyButton: true,
-    //       checkButton: false
-    //     };
-    //     return updatedMedia;
-    //   }
-    //   return m;
-    // });
-    // await setMedia(updateMedia);
+    //open stream an check if invoice is paid
+    isInvoicePaid(data) 
 
-    const dataInvoiceStream = await (await fetch(`/check-invoice-steam/${data.paymentRequest}`)).json()
+    if (webln) {
+      // Call webln functions
+      //const requestInvoiceResponse = await webln.makeInvoice({amount: price});
+      const sendPaymentResponse = await webln.sendPayment(data.paymentRequest);
+      console.log(data)
+      console.log(sendPaymentResponse)
 
-    // Invoice is paid 
-    if (dataInvoiceStream.settled === true) {
-        const resGetContent =  await getContent(dataInvoiceStream.memo)
-        const updateMedia = mediaList.map((m) => {
-            if (m.source === dataInvoiceStream.memo) {
-            return {
-                ...m,
-                status: true,
-                invoice: 'Thanks. This payment of ' + dataInvoiceStream.amt_paid_sat + ' sats was settled at ' + dataInvoiceStream.settle_date + '.',
-                checkButton: false,
-                fileDownloadUrl: resGetContent
-            };
-            }
-            return m;
-        });
-        await setMedia(updateMedia);
+    } else {
+      // No webln fallback
+      const updateMedia = mediaList.map((m) => {
+        if (m.source === source) {
+          const updatedMedia = {
+            ...m,
+            invoice: data.paymentRequest,
+            buyButton: true,
+            checkButton: false
+          };
+          return updatedMedia;
+        }
+        return m;
+      });
+      await setMedia(updateMedia);
     }
   }
 
+  //is the invoice paid 
+  async function isInvoicePaid(data) {
+    const dataInvoiceStream = await (await fetch(`/check-invoice-steam/${data.paymentRequest}`)).json()
+
+    if (dataInvoiceStream.settled === true) {
+      console.log("settled === true")
+
+      const resGetContent =  await getContent(dataInvoiceStream.memo)
+      const updateMedia = mediaList.map((m) => {
+          if (m.source === dataInvoiceStream.memo) {
+          return {
+              ...m,
+              status: true,
+              invoice: 'Thanks',
+              checkButton: false,
+              fileDownloadUrl: resGetContent
+          };
+          }
+          return m;
+      });
+      await setMedia(updateMedia);
+    }
+  }
+
+  //Get contet for the download
   async function getContent(source) {
     return await fetch(`/file/${source}`)
       .then(res => res.blob())
