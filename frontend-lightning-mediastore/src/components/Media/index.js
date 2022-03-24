@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 //import ReactDOM from "react-dom";
 import QRCode from "react-qr-code";
+import { requestProvider } from 'webln';
+
 
 const media = [
   {
@@ -38,22 +40,31 @@ const Media = (props) => {
 
   const generateInvoiceAndCheck = async (source, price) => {
     const data = await (await fetch(`/generate-invoice/${source}/${price}`)).json()
-    //why isn't it returning expiry
-    //console.log(data)
+    console.log(data)
 
-    const updateMedia = mediaList.map((m) => {
-      if (m.source === source) {
-        const updatedMedia = {
-          ...m,
-          invoice: data.paymentRequest,
-          buyButton: true,
-          checkButton: false
-        };
-        return updatedMedia;
-      }
-      return m;
-    });
-    await setMedia(updateMedia);
+    try {
+      const webln = await requestProvider();
+      const payResponse = await webln.sendPayment(data.paymentRequest);
+      console.log(payResponse)
+    }
+    catch(err) {
+      // Tell the user what went wrong
+      alert(err.message);
+    }
+
+    // const updateMedia = mediaList.map((m) => {
+    //   if (m.source === source) {
+    //     const updatedMedia = {
+    //       ...m,
+    //       invoice: data.paymentRequest,
+    //       buyButton: true,
+    //       checkButton: false
+    //     };
+    //     return updatedMedia;
+    //   }
+    //   return m;
+    // });
+    // await setMedia(updateMedia);
 
     const dataInvoiceStream = await (await fetch(`/check-invoice-steam/${data.paymentRequest}`)).json()
 

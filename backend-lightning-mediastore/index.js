@@ -81,6 +81,8 @@ const initClient = async () => {
   lnRpcClient = await createLnRpc({
     server: process.env.HOST_PORT,
     tls: false,
+    //tls: process.env.TLS_CERT,
+    //cert: process.env.TLS_CERT,
     macaroon: process.env.MACAROON,
   });
 
